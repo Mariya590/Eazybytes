@@ -1,0 +1,300 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat Application with User Authentication</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white shadow p-4">
+    <h1 class="text-2xl font-bold text-center text-gray-800">Chat Application with User Authentication</h1>
+  </header>
+
+  <!-- Main content -->
+  <main class="flex-grow max-w-4xl mx-auto p-4 w-full">
+    <!-- Registration & Login Forms -->
+    <section class="bg-white rounded shadow p-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Registration -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4">Register</h2>
+          <form id="registerForm" class="space-y-4" autocomplete="off">
+            <div>
+              <label for="regUsername" class="block font-medium mb-1">Username</label>
+              <input type="text" id="regUsername" name="username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label for="regEmail" class="block font-medium mb-1">Email</label>
+              <input type="email" id="regEmail" name="email" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label for="regPassword" class="block font-medium mb-1">Password</label>
+              <input type="password" id="regPassword" name="password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition">Register</button>
+          </form>
+          <p id="registerMessage" class="mt-2 text-sm text-red-600"></p>
+        </div>
+
+        <!-- Login -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4">Login</h2>
+          <form id="loginForm" class="space-y-4" autocomplete="off">
+            <div>
+              <label for="loginUsername" class="block font-medium mb-1">Username</label>
+              <input type="text" id="loginUsername" name="username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" />
+            </div>
+            <div>
+              <label for="loginPassword" class="block font-medium mb-1">Password</label>
+              <input type="password" id="loginPassword" name="password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" />
+            </div>
+            <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 rounded hover:bg-green-700 transition">Login</button>
+          </form>
+          <p id="loginMessage" class="mt-2 text-sm text-red-600"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat Room -->
+    <section id="chatSection" class="hidden bg-white rounded shadow p-6 flex flex-col h-[600px] md:h-[600px]">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">Chat Room</h2>
+        <button id="logoutBtn" class="text-red-600 hover:text-red-800 font-semibold"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+      </div>
+      <div id="chatMessages" class="flex-grow border border-gray-300 rounded p-4 overflow-y-auto mb-4 bg-gray-50" aria-live="polite" aria-atomic="true"></div>
+      <form id="chatForm" class="flex space-x-2" aria-label="Send message form">
+        <input type="text" id="chatInput" placeholder="Type your message..." autocomplete="off" required class="flex-grow border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Message input" />
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition" aria-label="Send message button">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white shadow p-4 text-center text-gray-600 text-sm">
+    &copy; 2025 Chat Application. All rights reserved.
+  </footer>
+
+  <script>
+    /*
+      This is a simple front-end only chat application with user registration, login, and chat functionality.
+      It uses localStorage to simulate a backend database and JWT-like token for session management.
+      This is for demonstration and learning purposes only and is NOT secure for production use.
+    */
+
+    // In-memory user store loaded from localStorage
+    const users = [];
+
+    // Current logged in username
+    let currentUser = null;
+
+    // DOM Elements
+    const registerForm = document.getElementById('registerForm');
+    const loginForm = document.getElementById('loginForm');
+    const registerMessage = document.getElementById('registerMessage');
+    const loginMessage = document.getElementById('loginMessage');
+    const chatSection = document.getElementById('chatSection');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Generate a simple base64 token (NOT secure, just demo)
+    function generateToken(username) {
+      return btoa(username + ':' + Date.now());
+    }
+
+    // Parse token to get username
+    function parseToken(token) {
+      try {
+        const decoded = atob(token);
+        return decoded.split(':')[0];
+      } catch {
+        return null;
+      }
+    }
+
+    // Save users array to localStorage
+    function saveUsers() {
+      localStorage.setItem('chatAppUsers', JSON.stringify(users));
+    }
+
+    // Load users from localStorage into users array
+    function loadUsers() {
+      const stored = localStorage.getItem('chatAppUsers');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            users.splice(0, users.length, ...parsed);
+          }
+        } catch {}
+      }
+    }
+
+    // Save chat messages to localStorage
+    function saveMessages(messages) {
+      localStorage.setItem('chatAppMessages', JSON.stringify(messages));
+    }
+
+    // Load chat messages from localStorage
+    function loadMessages() {
+      const stored = localStorage.getItem('chatAppMessages');
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+
+    // Messages array
+    let messages = loadMessages();
+
+    // Render chat messages in the chatMessages container
+    function renderMessages() {
+      chatMessages.innerHTML = '';
+      messages.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'mb-2';
+        const time = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        msgDiv.innerHTML = '<span class="font-semibold">${escapeHtml(msg.username)}</span> <span class="text-xs text-gray-500">[${time}]</span>: ${escapeHtml(msg.text)}';
+        chatMessages.appendChild(msgDiv);
+      });
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Escape HTML to prevent injection
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function(m) {
+        return ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        })[m];
+      });
+    }
+
+    // Register form submission handler
+    registerForm.addEventListener('submit', e => {
+      e.preventDefault();
+      registerMessage.textContent = '';
+      registerMessage.classList.remove('text-green-600');
+      registerMessage.classList.add('text-red-600');
+
+      const username = registerForm.username.value.trim();
+      const email = registerForm.email.value.trim();
+      const password = registerForm.password.value;
+
+      if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+        registerMessage.textContent = 'Username already exists.';
+        return;
+      }
+      if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+        registerMessage.textContent = 'Email already registered.';
+        return;
+      }
+
+      // Store user with plain password (for demo only, never do this in production)
+      users.push({ username, email, password });
+      saveUsers();
+
+      registerMessage.classList.remove('text-red-600');
+      registerMessage.classList.add('text-green-600');
+      registerMessage.textContent = 'Registration successful! You can now login.';
+      registerForm.reset();
+    });
+
+    // Login form submission handler
+    loginForm.addEventListener('submit', e => {
+      e.preventDefault();
+      loginMessage.textContent = '';
+      loginMessage.classList.remove('text-green-600');
+      loginMessage.classList.add('text-red-600');
+
+      const username = loginForm.username.value.trim();
+      const password = loginForm.password.value;
+
+      const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+      if (!user) {
+        loginMessage.textContent = 'Invalid username or password.';
+        return;
+      }
+
+      // Generate token and save to localStorage
+      const token = generateToken(user.username);
+      localStorage.setItem('chatAppToken', token);
+      currentUser = user.username;
+
+      loginMessage.textContent = '';
+      loginForm.reset();
+      registerForm.reset();
+      showChat();
+    });
+
+    // Show chat UI and hide auth forms
+    function showChat() {
+      chatSection.classList.remove('hidden');
+      registerForm.closest('section').classList.add('hidden');
+      loginForm.closest('section').classList.add('hidden');
+      renderMessages();
+      chatInput.focus();
+    }
+
+    // Show auth forms and hide chat UI
+    function showAuth() {
+      chatSection.classList.add('hidden');
+      registerForm.closest('section').classList.remove('hidden');
+      loginForm.closest('section').classList.remove('hidden');
+      currentUser = null;
+      localStorage.removeItem('chatAppToken');
+    }
+
+    // Chat form submission handler
+    chatForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      const newMsg = {
+        username: currentUser,
+        text,
+        timestamp: Date.now()
+      };
+      messages.push(newMsg);
+      saveMessages(messages);
+      renderMessages();
+      chatInput.value = '';
+      chatInput.focus();
+    });
+
+    // Logout button handler
+    logoutBtn.addEventListener('click', () => {
+      showAuth();
+    });
+
+    // Initialize app on page load
+    function init() {
+      loadUsers();
+      const token = localStorage.getItem('chatAppToken');
+      if (token) {
+        const username = parseToken(token);
+        if (username && users.find(u => u.username === username)) {
+          currentUser = username;
+          showChat();
+          return;
+        }
+      }
+      showAuth();
+    }
+
+    init();
+  </script>
+</body>
+</html>
